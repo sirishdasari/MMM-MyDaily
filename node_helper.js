@@ -40,14 +40,19 @@ module.exports = NodeHelper.create({
         throw new Error(`Missing module configuration: ${missing.join(", ")}`)
       }
 
+      const apiKeyEnv = config.apiKeyEnv || "APPWRITE_API_KEY"
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(apiKeyEnv)) {
+        throw new Error("apiKeyEnv must be a valid environment variable name")
+      }
+
       const envPath = path.join(__dirname, ".env")
-      if (!process.env.APPWRITE_API_KEY && fs.existsSync(envPath)) {
+      if (!process.env[apiKeyEnv] && fs.existsSync(envPath)) {
         process.loadEnvFile(envPath)
       }
 
-      const apiKey = process.env.APPWRITE_API_KEY
+      const apiKey = process.env[apiKeyEnv]
       if (!apiKey) {
-        throw new Error("APPWRITE_API_KEY environment variable is required")
+        throw new Error(`${apiKeyEnv} environment variable is required`)
       }
 
       if (!Number.isInteger(config.refreshInterval) || config.refreshInterval < 1000) {

@@ -3,6 +3,7 @@ Module.register("MMM-MyDaily", {
     endpoint: "",
     projectId: "",
     databaseId: "",
+    apiKeyEnv: "APPWRITE_API_KEY",
     refreshInterval: 60 * 1000
   },
 

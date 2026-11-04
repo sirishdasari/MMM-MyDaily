@@ -28,12 +28,13 @@ Create an Appwrite API key with the `tables.read` scope, then set the Appwrite e
 		endpoint: "https://<REGION>.cloud.appwrite.io/v1",
 		projectId: "YOUR_PROJECT_ID",
 		databaseId: "YOUR_DATABASE_ID",
+		apiKeyEnv: "APPWRITE_API_KEY",
 		refreshInterval: 60 * 1000
 	}
 }
 ```
 
-`endpoint` must be your Appwrite API endpoint and include `/v1`. The module retrieves tables in pages of 100 until it has listed every table. `refreshInterval` is in milliseconds. Restart MagicMirror after creating or changing `.env` or the environment variable.
+`apiKeyEnv` is the name of the server-side environment variable containing the key; it is not the key itself. `endpoint` must be your Appwrite API endpoint and include `/v1`. The module retrieves tables in pages of 100 until it has listed every table. `refreshInterval` is in milliseconds. Restart MagicMirror after creating or changing `.env` or the environment variable.
 
 Alternatively, export the variable before starting MagicMirror:
 
