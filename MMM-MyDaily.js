@@ -1,4 +1,4 @@
-Module.register("MMM-Template", {
+Module.register("MMM-MyDaily", {
   defaults: {
     endpoint: "",
     projectId: "",
@@ -7,7 +7,7 @@ Module.register("MMM-Template", {
   },
 
   getStyles() {
-    return ["template.css"]
+    return ["MMM-MyDaily.css"]
   },
 
   start() {
@@ -32,7 +32,7 @@ Module.register("MMM-Template", {
 
   getDom() {
     const wrapper = document.createElement("div")
-    wrapper.className = "MMM-Template"
+    wrapper.className = "MMM-MyDaily"
 
     if (this.error) {
       wrapper.textContent = `Appwrite error: ${this.error}`

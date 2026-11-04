@@ -1,4 +1,4 @@
-.MMM-Template .appwrite-list {
+.MMM-MyDaily .appwrite-list {
 	max-width: 30vw;
 	max-height: 45vh;
 	overflow-y: auto;
@@ -8,7 +8,7 @@
 	line-height: 1.15;
 }
 
-.MMM-Template .appwrite-list li {
+.MMM-MyDaily .appwrite-list li {
 	margin: 0 0 0.15em;
 	overflow-wrap: anywhere;
 }

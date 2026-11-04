@@ -1,8 +1,8 @@
 {
-  "name": "mmm-template",
+  "name": "mmm-mydaily",
   "version": "1.0.0",
-  "description": "Display Appwrite collection document titles in MagicMirror",
-  "main": "MMM-Template.js",
+  "description": "Display all Appwrite TablesDB tables in MagicMirror",
+  "main": "MMM-MyDaily.js",
   "scripts": {
     "lint": "eslint",
     "lint:fix": "eslint --fix",
@@ -10,17 +10,19 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+[GitHub url].git"
+    "url": "git+https://github.com/sirishdasari/MMM-MyDaily.git"
   },
   "keywords": [
-    "template"
+    "magicmirror",
+    "appwrite",
+    "tablesdb"
   ],
   "author": "[Author]",
   "license": "MIT",
   "bugs": {
-    "url": "[GitHub url]/issues"
+    "url": "https://github.com/sirishdasari/MMM-MyDaily/issues"
   },
-  "homepage": "[GitHub url]#readme",
+  "homepage": "https://github.com/sirishdasari/MMM-MyDaily#readme",
   "devDependencies": {
     "@eslint/css": "^0.9.0",
     "@eslint/js": "^9.30.1",

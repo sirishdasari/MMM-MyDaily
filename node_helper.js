@@ -1,4 +1,6 @@
 const NodeHelper = require("node_helper")
+const fs = require("node:fs")
+const path = require("node:path")
 
 module.exports = NodeHelper.create({
   start() {
@@ -38,6 +40,11 @@ module.exports = NodeHelper.create({
         throw new Error(`Missing module configuration: ${missing.join(", ")}`)
       }
 
+      const envPath = path.join(__dirname, ".env")
+      if (!process.env.APPWRITE_API_KEY && fs.existsSync(envPath)) {
+        process.loadEnvFile(envPath)
+      }
+
       const apiKey = process.env.APPWRITE_API_KEY
       if (!apiKey) {
         throw new Error("APPWRITE_API_KEY environment variable is required")
@@ -59,7 +66,7 @@ module.exports = NodeHelper.create({
       const headers = {
         "X-Appwrite-Project": config.projectId,
         "X-Appwrite-Key": apiKey,
-        Accept: "application/json"
+        "Accept": "application/json"
       }
 
       while (true) {
