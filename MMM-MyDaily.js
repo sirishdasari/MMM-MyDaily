@@ -6,9 +6,10 @@ Module.register("MMM-MyDaily", {
     tableId: "todo_db",
     taskField: "title",
     taskDetailsField: "",
-    queries: [{ method: "equal", attribute: "completed", values: [false] }],
     apiKeyEnv: "APPWRITE_API_KEY",
-    refreshInterval: 60 * 1000
+    refreshInterval: 60 * 1000,
+    slideInterval: 20000,
+    fadeDuration: 1000
   },
 
   getStyles() {
@@ -19,14 +20,24 @@ Module.register("MMM-MyDaily", {
     this.tasks = []
     this.error = null
     this.loaded = false
+    this.currentSlide = 0
     this.instanceId = this.identifier
     this.sendSocketNotification("APPWRITE_CONFIG", {
       instanceId: this.instanceId,
       config: this.config
     })
+    this.slideTimer = setInterval(() => {
+      if (!this.loaded || this.error) {
+        return
+      }
+
+      this.currentSlide = (this.currentSlide + 1) % this.getSlides().length
+      this.updateDom(this.config.fadeDuration)
+    }, this.config.slideInterval)
   },
 
   stop() {
+    clearInterval(this.slideTimer)
     this.sendSocketNotification("APPWRITE_STOP", { instanceId: this.instanceId })
   },
 
@@ -47,6 +58,27 @@ Module.register("MMM-MyDaily", {
     }
   },
 
+  getSlides() {
+    const tasks = Array.isArray(this.tasks) ? this.tasks : []
+    const overdueTasks = tasks.filter((task) => {
+      const dueDate = task.dueDate ? Date.parse(task.dueDate) : NaN
+      return !task.completed && Number.isFinite(dueDate) && dueDate < Date.now()
+    })
+    const latestStandup = tasks
+      .filter(task => task.title.trim().toLowerCase() === "daily standup")
+      .sort((first, second) => Date.parse(second.createdAt || "") - Date.parse(first.createdAt || ""))[0]
+
+    return [
+      { heading: "All Tasks", tasks },
+      { heading: "Overdue", tasks: overdueTasks },
+      { heading: "Daily Standup", standup: latestStandup }
+    ]
+  },
+
+  getHeader() {
+    return this.getSlides()[this.currentSlide]?.heading || "Tasks"
+  },
+
   getDom() {
     const wrapper = document.createElement("div")
     wrapper.className = "MMM-MyDaily"
@@ -61,23 +93,26 @@ Module.register("MMM-MyDaily", {
       return wrapper
     }
 
-    if (this.tasks.length === 0) {
-      wrapper.textContent = "No tasks found."
+    const slide = this.getSlides()[this.currentSlide]
+    if (slide.standup) {
+      const description = document.createElement("div")
+      description.className = "small appwrite-standup"
+      description.textContent = slide.standup.details || "No description available."
+      wrapper.appendChild(description)
+      return wrapper
+    }
+
+    if (slide.tasks.length === 0) {
+      wrapper.textContent = slide.heading === "Overdue" ? "No overdue tasks." : "No tasks found."
       return wrapper
     }
 
     const list = document.createElement("ul")
     list.className = "small appwrite-list"
 
-    this.tasks.forEach((task) => {
+    slide.tasks.forEach((task) => {
       const item = document.createElement("li")
       item.textContent = task.title
-      if (task.details) {
-        const details = document.createElement("div")
-        details.className = "dimmed small"
-        details.textContent = task.details
-        item.appendChild(details)
-      }
       list.appendChild(item)
     })
 

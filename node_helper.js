@@ -99,22 +99,6 @@ module.exports = NodeHelper.create({
       const basePath = endpoint.pathname.replace(/\/+$/, "")
       const tasks = []
       let cursorAfter = null
-      const queries = Array.isArray(config.queries)
-        ? config.queries
-        : config.filterField
-          ? [{ method: "equal", attribute: config.filterField, values: [config.filterValue] }]
-          : []
-      const resolvedQueries = queries.map((query) => {
-        if (!query || typeof query.method !== "string" || typeof query.attribute !== "string" || !Array.isArray(query.values)) {
-          throw new Error("Each Appwrite query must include method, attribute, and values")
-        }
-
-        return {
-          method: query.method,
-          attribute: query.attribute,
-          values: query.values.map(value => value === "$NOW" ? new Date().toISOString() : value)
-        }
-      })
 
       const headers = {
         "X-Appwrite-Project": config.projectId,
@@ -126,13 +110,6 @@ module.exports = NodeHelper.create({
         const pageUrl = new URL(endpoint)
         pageUrl.pathname = `${basePath}/tablesdb/${encodeURIComponent(config.databaseId)}/tables/${encodeURIComponent(config.tableId)}/rows`
         pageUrl.searchParams.set("limit", "100")
-        for (const query of resolvedQueries) {
-          pageUrl.searchParams.append("queries[]", JSON.stringify({
-            method: query.method,
-            attribute: query.attribute,
-            values: query.values
-          }))
-        }
         if (cursorAfter) {
           pageUrl.searchParams.set("cursorAfter", cursorAfter)
         }
@@ -167,7 +144,10 @@ module.exports = NodeHelper.create({
           return {
             id: row.$id,
             title,
-            details: typeof details === "string" ? details : null
+            details: typeof details === "string" ? details : null,
+            dueDate: typeof row.dueDate === "string" ? row.dueDate : null,
+            completed: row.completed === true,
+            createdAt: typeof row.$createdAt === "string" ? row.$createdAt : null
           }
         }))
 

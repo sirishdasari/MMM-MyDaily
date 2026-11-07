@@ -1,6 +1,16 @@
+.MMM-MyDaily {
+	width: 38vw;
+	max-width: 520px;
+	min-width: 260px;
+	margin: 0 auto;
+	text-align: center;
+}
+
 .MMM-MyDaily .appwrite-list {
-	max-width: 30vw;
-	margin: 0;
+	box-sizing: border-box;
+	max-height: 40vh;
+	margin: 0 auto;
+	overflow-y: auto;
 	padding-left: 1em;
 	text-align: left;
 	line-height: 1.15;
@@ -11,6 +21,10 @@
 	overflow-wrap: anywhere;
 }
 
-.MMM-MyDaily .appwrite-list li > div {
-	margin-top: 0.1em;
+.MMM-MyDaily .appwrite-standup {
+	box-sizing: border-box;
+	max-height: 40vh;
+	overflow-y: auto;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
 }
