@@ -3,6 +3,10 @@ Module.register("MMM-MyDaily", {
     endpoint: "",
     projectId: "",
     databaseId: "",
+    tableId: "todo_db",
+    taskField: "title",
+    taskDetailsField: "",
+    queries: [{ method: "equal", attribute: "completed", values: [false] }],
     apiKeyEnv: "APPWRITE_API_KEY",
     refreshInterval: 60 * 1000
   },
@@ -12,20 +16,32 @@ Module.register("MMM-MyDaily", {
   },
 
   start() {
-    this.tables = []
+    this.tasks = []
     this.error = null
     this.loaded = false
-    this.sendSocketNotification("APPWRITE_CONFIG", this.config)
+    this.instanceId = this.identifier
+    this.sendSocketNotification("APPWRITE_CONFIG", {
+      instanceId: this.instanceId,
+      config: this.config
+    })
+  },
+
+  stop() {
+    this.sendSocketNotification("APPWRITE_STOP", { instanceId: this.instanceId })
   },
 
   socketNotificationReceived(notification, payload) {
-    if (notification === "APPWRITE_TABLES") {
-      this.tables = payload
+    if (payload?.instanceId !== this.instanceId) {
+      return
+    }
+
+    if (notification === "APPWRITE_TASKS") {
+      this.tasks = payload.tasks
       this.error = null
       this.loaded = true
       this.updateDom()
     } else if (notification === "APPWRITE_ERROR") {
-      this.error = payload
+      this.error = payload.error
       this.loaded = true
       this.updateDom()
     }
@@ -41,21 +57,27 @@ Module.register("MMM-MyDaily", {
     }
 
     if (!this.loaded) {
-      wrapper.textContent = "Loading Appwrite tables..."
+      wrapper.textContent = "Loading tasks..."
       return wrapper
     }
 
-    if (this.tables.length === 0) {
-      wrapper.textContent = "No tables found in this Appwrite database."
+    if (this.tasks.length === 0) {
+      wrapper.textContent = "No tasks found."
       return wrapper
     }
 
     const list = document.createElement("ul")
     list.className = "small appwrite-list"
 
-    this.tables.forEach((table) => {
+    this.tasks.forEach((task) => {
       const item = document.createElement("li")
-      item.textContent = `${table.name} (${table.id})`
+      item.textContent = task.title
+      if (task.details) {
+        const details = document.createElement("div")
+        details.className = "dimmed small"
+        details.textContent = task.details
+        item.appendChild(details)
+      }
       list.appendChild(item)
     })
 

@@ -12,3 +12,7 @@
 	margin: 0 0 0.15em;
 	overflow-wrap: anywhere;
 }
+
+.MMM-MyDaily .appwrite-list li > div {
+	margin-top: 0.1em;
+}

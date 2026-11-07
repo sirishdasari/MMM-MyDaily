@@ -4,37 +4,69 @@ const path = require("node:path")
 
 module.exports = NodeHelper.create({
   start() {
-    this.config = null
-    this.refreshTimer = null
-    this.isFetching = false
+    this.instances = new Map()
   },
 
-  socketNotificationReceived(notification, config) {
-    if (notification !== "APPWRITE_CONFIG") {
+  socketNotificationReceived(notification, payload) {
+    if (notification === "APPWRITE_CONFIG") {
+      this.configureInstance(payload)
+    } else if (notification === "APPWRITE_STOP") {
+      this.stopInstance(payload?.instanceId)
+    }
+  },
+
+  configureInstance(payload) {
+    if (!payload?.instanceId || !payload.config) {
       return
     }
 
-    this.config = config
-    clearInterval(this.refreshTimer)
-    this.fetchTables()
-    const refreshInterval = Number.isInteger(config?.refreshInterval) ? config.refreshInterval : 60 * 1000
-    this.refreshTimer = setInterval(() => this.fetchTables(), refreshInterval)
+    const existing = this.instances.get(payload.instanceId)
+    if (existing) {
+      clearInterval(existing.refreshTimer)
+      existing.config = payload.config
+      existing.version++
+    } else {
+      this.instances.set(payload.instanceId, {
+        config: payload.config,
+        refreshTimer: null,
+        isFetching: false,
+        version: 0
+      })
+    }
+
+    const instance = this.instances.get(payload.instanceId)
+    this.fetchTasks(payload.instanceId)
+    const refreshInterval = Number.isInteger(instance.config.refreshInterval) ? instance.config.refreshInterval : 60 * 1000
+    instance.refreshTimer = setInterval(() => this.fetchTasks(payload.instanceId), refreshInterval)
   },
 
   stop() {
-    clearInterval(this.refreshTimer)
+    for (const instanceId of this.instances.keys()) {
+      this.stopInstance(instanceId)
+    }
   },
 
-  async fetchTables() {
-    if (this.isFetching) {
+  stopInstance(instanceId) {
+    const instance = this.instances.get(instanceId)
+    if (!instance) {
       return
     }
 
-    this.isFetching = true
+    clearInterval(instance.refreshTimer)
+    this.instances.delete(instanceId)
+  },
+
+  async fetchTasks(instanceId) {
+    const instance = this.instances.get(instanceId)
+    if (!instance || instance.isFetching) {
+      return
+    }
+
+    instance.isFetching = true
+    const { config, version } = instance
 
     try {
-      const config = this.config
-      const required = ["endpoint", "projectId", "databaseId"]
+      const required = ["endpoint", "projectId", "databaseId", "tableId", "taskField"]
       const missing = required.filter(key => !config?.[key])
       if (missing.length) {
         throw new Error(`Missing module configuration: ${missing.join(", ")}`)
@@ -65,8 +97,24 @@ module.exports = NodeHelper.create({
       }
 
       const basePath = endpoint.pathname.replace(/\/+$/, "")
-      const tables = []
+      const tasks = []
       let cursorAfter = null
+      const queries = Array.isArray(config.queries)
+        ? config.queries
+        : config.filterField
+          ? [{ method: "equal", attribute: config.filterField, values: [config.filterValue] }]
+          : []
+      const resolvedQueries = queries.map((query) => {
+        if (!query || typeof query.method !== "string" || typeof query.attribute !== "string" || !Array.isArray(query.values)) {
+          throw new Error("Each Appwrite query must include method, attribute, and values")
+        }
+
+        return {
+          method: query.method,
+          attribute: query.attribute,
+          values: query.values.map(value => value === "$NOW" ? new Date().toISOString() : value)
+        }
+      })
 
       const headers = {
         "X-Appwrite-Project": config.projectId,
@@ -76,8 +124,15 @@ module.exports = NodeHelper.create({
 
       while (true) {
         const pageUrl = new URL(endpoint)
-        pageUrl.pathname = `${basePath}/tablesdb/${encodeURIComponent(config.databaseId)}/tables`
+        pageUrl.pathname = `${basePath}/tablesdb/${encodeURIComponent(config.databaseId)}/tables/${encodeURIComponent(config.tableId)}/rows`
         pageUrl.searchParams.set("limit", "100")
+        for (const query of resolvedQueries) {
+          pageUrl.searchParams.append("queries[]", JSON.stringify({
+            method: query.method,
+            attribute: query.attribute,
+            values: query.values
+          }))
+        }
         if (cursorAfter) {
           pageUrl.searchParams.set("cursorAfter", cursorAfter)
         }
@@ -99,31 +154,46 @@ module.exports = NodeHelper.create({
           throw new Error(`HTTP ${response.status}: ${result.message || "Appwrite request failed"}`)
         }
 
-        if (!Array.isArray(result.tables)) {
-          throw new Error("Appwrite response did not contain a tables array")
+        if (!Array.isArray(result.rows)) {
+          throw new Error("Appwrite response did not contain a rows array")
         }
 
-        tables.push(...result.tables.map(table => ({
-          id: table.$id,
-          name: table.name || table.$id
-        })))
+        tasks.push(...result.rows.map((row) => {
+          const title = row[config.taskField]
+          if (typeof title !== "string") {
+            throw new Error(`Appwrite task row ${row.$id || "(unknown)"} is missing string field "${config.taskField}"`)
+          }
+          const details = config.taskDetailsField ? row[config.taskDetailsField] : null
+          return {
+            id: row.$id,
+            title,
+            details: typeof details === "string" ? details : null
+          }
+        }))
 
-        if (result.tables.length < 100) {
+        if (result.rows.length < 100) {
           break
         }
 
-        const nextCursor = result.tables[result.tables.length - 1].$id
+        const nextCursor = result.rows[result.rows.length - 1].$id
         if (!nextCursor || nextCursor === cursorAfter) {
-          throw new Error("Appwrite table pagination did not return a valid next cursor")
+          throw new Error("Appwrite task pagination did not return a valid next cursor")
         }
         cursorAfter = nextCursor
       }
 
-      this.sendSocketNotification("APPWRITE_TABLES", tables)
+      if (this.instances.get(instanceId) === instance && instance.version === version) {
+        this.sendSocketNotification("APPWRITE_TASKS", { instanceId, tasks })
+      }
     } catch (error) {
-      this.sendSocketNotification("APPWRITE_ERROR", error.message)
+      if (this.instances.get(instanceId) === instance && instance.version === version) {
+        this.sendSocketNotification("APPWRITE_ERROR", { instanceId, error: error.message })
+      }
     } finally {
-      this.isFetching = false
+      instance.isFetching = false
+      if (this.instances.get(instanceId) === instance && instance.version !== version) {
+        this.fetchTasks(instanceId)
+      }
     }
   }
 })
