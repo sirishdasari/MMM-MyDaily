@@ -1,9 +1,8 @@
 .MMM-MyDaily {
-	width: 38vw;
-	max-width: 520px;
-	min-width: 260px;
-	margin: 0 auto;
-	text-align: center;
+	width: 32vw;
+	max-width: 380px;
+	min-width: 240px;
+	text-align: left;
 }
 
 .MMM-MyDaily .appwrite-list {
